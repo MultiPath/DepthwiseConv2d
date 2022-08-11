@@ -67,6 +67,7 @@ class DepthWiseConv2dImplicitGEMM(nn.Conv2d):
 
 
 if __name__ == "__main__":
+    import time
     torch.random.manual_seed(0)
     if torch.cuda.is_available():
         x = torch.randn(64, 384, 32, 32).cuda()
@@ -74,8 +75,22 @@ if __name__ == "__main__":
         m2 = nn.Conv2d(384, 384, 31, padding=31 // 2, bias=False, groups=384).cuda()
         m2.load_state_dict(m1.state_dict())
         with torch.cuda.amp.autocast(True):
-            y1 = m1(x)
-            y2 = m2(x)
+            
+            time0 = time.time()
+            for _ in range(1000):
+                y1 = m1(x)
+            print(f'DepthWiseConv2dImplicitGEMM {time.time() - time0}s')
+            
+            time0 = time.time()
+            for _ in range(1000):
+                y2 = m2(x)
+            print(f'PyTorch Conv2d {time.time() - time0}s')
+        
+        """
+        DepthWiseConv2dImplicitGEMM 0.03983139991760254s
+        PyTorch Conv2d 13.600992441177368s
+        """
+
         (y1.mean() * 1024).backward()
         (y2.mean() * 1024).backward()
         print("output difference:", ((y1 - y2) ** 2).mean())
